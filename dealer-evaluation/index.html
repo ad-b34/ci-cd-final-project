@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dealer Evaluation Portal</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 40px; background-color: #f4f6f9; color: #333; }
+        .container { max-width: 600px; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { color: #0f62fe; margin-top: 0; }
+        label { font-weight: bold; display: block; margin: 15px 0 5px; }
+        select, button { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; margin-bottom: 15px; }
+        .result-box { background: #e8f0fe; padding: 15px; border-left: 5px solid #0f62fe; border-radius: 4px; margin-top: 20px; display: none; }
+        ul { padding-left: 20px; }
+        li { margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Dealer Evaluation Dashboard</h2>
+    
+    <!-- 1. Product Selection Dropdown -->
+    <label for="productDropdown">Select a Product:</label>
+    <select id="productDropdown">
+        <option value="">-- Loading Products... --</option>
+    </select>
+
+    <!-- 2. Dealer Selection Dropdown -->
+    <label for="dealerDropdown">Select a Supplying Dealer:</label>
+    <select id="dealerDropdown" disabled>
+        <option value="">-- Select a product first --</option>
+    </select>
+
+    <!-- 3. Show All Dealers Button -->
+    <button id="showAllBtn" disabled>Compare All Dealers</button>
+
+    <!-- Results Panel -->
+    <div id="results" class="result-box"></div>
+</div>
+
+<script>
+    // =========================================================================
+    // CRITERIA 4: PLACEHOLDERS FOR YOUR DEPLOYED URLS
+    // Local development values are assigned below. Replace them with Code Engine URLs later.
+    // =========================================================================
+    const PRODUCT_SERVICE_URL = "http://localhost:5000/products";
+    const PRICING_SERVICE_URL = "http://localhost:3000/prices";
+
+    let currentDealerData = [];
+
+    // Fetch and populate products into dropdown on load (Criteria 6)
+    window.addEventListener('DOMContentLoaded', async () => {
+        const productDropdown = document.getElementById('productDropdown');
+        try {
+            const response = await fetch(PRODUCT_SERVICE_URL);
+            const products = await response.json();
+            
+            productDropdown.innerHTML = '<option value="">-- Choose a Product --</option>';
+            products.forEach(prod => {
+                let opt = document.createElement('option');
+                opt.value = prod.id;
+                opt.textContent = prod.name;
+                productDropdown.appendChild(opt);
+            });
+        } catch (error) {
+            console.error("Error fetching products:", error);
+            productDropdown.innerHTML = '<option value="">Failed to load products.</option>';
+        }
+    });
+
+    // When a product is selected, fetch associated dealers & prices (Criteria 7)
+    document.getElementById('productDropdown').addEventListener('change', async (e) => {
+        const productId = e.target.value;
+        const dealerDropdown = document.getElementById('dealerDropdown');
+        const showAllBtn = document.getElementById('showAllBtn');
+        const resultsDiv = document.getElementById('results');
+        
+        resultsDiv.style.display = 'none';
+        
+        if (!productId) {
+            dealerDropdown.innerHTML = '<option value="">-- Select a product first --</option>';
+            dealerDropdown.disabled = true;
+            showAllBtn.disabled = true;
+            return;
+        }
+
+        try {
+            const response = await fetch(`${PRICING_SERVICE_URL}/${productId}`);
+            currentDealerData = await response.json();
+
+            dealerDropdown.innerHTML = '<option value="">-- Choose a Dealer --</option>';
+            currentDealerData.forEach((item, index) => {
+                let opt = document.createElement('option');
+                opt.value = index;
+                opt.textContent = item.dealer;
+                dealerDropdown.appendChild(opt);
+            });
+
+            dealerDropdown.disabled = false;
+            showAllBtn.disabled = false;
+        } catch (error) {
+            console.error("Error fetching dealer details:", error);
+        }
+    });
+
+    // Display price when a single dealer is selected (Criteria 8)
+    document.getElementById('dealerDropdown').addEventListener('change', (e) => {
+        const index = e.target.value;
+        const resultsDiv = document.getElementById('results');
+        
+        if (index === "") {
+            resultsDiv.style.display = 'none';
+            return;
+        }
+
+        const selected = currentDealerData[index];
+        resultsDiv.innerHTML = `<strong>Selected Offer:</strong><br>${selected.dealer} offers this product for <strong>$${selected.price}</strong>`;
+        resultsDiv.style.display = 'block';
+    });
+
+    // Display all dealer prices simultaneously (Criteria 9)
+    document.getElementById('showAllBtn').addEventListener('click', () => {
+        const resultsDiv = document.getElementById('results');
+        if (currentDealerData.length === 0) return;
+
+        let listHtml = '<strong>All Available Dealer Offers:</strong><ul>';
+        currentDealerData.forEach(item => {
+            listHtml += `<li>${item.dealer}: <strong>$${item.price}</strong></li>`;
+        });
+        listHtml += '</ul>';
+
+        resultsDiv.innerHTML = listHtml;
+        resultsDiv.style.display = 'block';
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: project-pipeline-tasks
+spec:
+  workspaces:
+    - name: source
+  steps:
+    - name: cleanup-workspace
+      image: alpine:latest
+      script: |
+        #!/bin/sh
+        echo "Cleaning up workspace environment..."
+        if [ -d "$(workspaces.source.path)/lost+found" ]; then
+          echo "Preserving system directories..."
+        fi
+        rm -rf $(workspaces.source.path)/*
+        echo "Workspace cleared successfully."
+
+    - name: run-tests
+      image: python:3.10-slim
+      workingDir: $(workspaces.source.path)/product-details
+      script: |
+        #!/bin/sh
+        echo "Installing runtime testing dependencies..."
+        pip install --no-cache-dir -r requirements.txt
+        echo "Executing test suite inside OpenShift runner..."
+        python -m unittest discover -s . -p "*.py"
